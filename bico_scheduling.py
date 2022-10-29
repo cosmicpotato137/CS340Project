@@ -16,6 +16,8 @@ import re
 import pandas as pd
 import numpy as np
 import os
+import brynmawr.get_bmc_info as prep_hav
+import haverford.get_haverford_info as prep_bmc
 
 
 # get haverford college data
@@ -508,6 +510,7 @@ def make_schedule(students, classes, rooms, times, profs):
     Counter.tick(len(times))
     rooms = {time: sorted_rooms.copy()
              for time in times}            # I don't understand this
+    print(sections)
 
     # while there are valid classes left
     while (True):
@@ -529,11 +532,13 @@ def make_schedule(students, classes, rooms, times, profs):
         if max_size == 0:
             break
 
+        # print(max_size, max_cls, max_time)
+
         # get the room info and remove the room from the current section
         idx = rooms[max_time].index[0]
         room = rooms[max_time]["room"][idx]
         rooms[max_time].drop(idx, inplace=True)
-
+        # print(rooms)
         # get section info and append to final schedule
         sec = sections[max_cls][max_time]
         sec.room = room
@@ -542,15 +547,26 @@ def make_schedule(students, classes, rooms, times, profs):
         schedule.append(sec)
 
         # remove conflicting sections from contention
-        sections.pop(max_cls)
+        # sections.pop(max_cls)
+        # for cls in profs[sec.professor]:
+        #     Counter.tick()
+        #     try:
+        #         sections[cls].pop(max_time)  # Love this
+        #     except:
+        #         #print(max_cls, cls)
+        #         pass
+        # endwhile
+        print(sections.pop())
+
+        for time in sections[max_cls]:
+            Counter.tick()
+            sections[max_cls][time].applicants = []
         for cls in profs[sec.professor]:
             Counter.tick()
-            try:
-                sections[cls].pop(max_time)  # Love this
-            except:
-                #print(max_cls, cls)
-                pass
-        # endwhile
+            sections[cls][max_time].applicants = []
+        for cls in sections:
+            Counter.tick()
+            sections[cls][max_time].applicants = []
 
     return schedule
 
@@ -577,18 +593,82 @@ def schedule_rating(schedule):
 
 # make a file out of a list of Sections
 def schedule_to_file(schedule, output_file):
-    schedule_df = {"Course": [], "Room": [],
-                   "Teacher": [], "Time": [], "Students": []}
+    # schedule_df = {"Course": [], "Room": [],
+    #                "Teacher": [], "Time": [], "Students": []}
+
+    lines = ["Course\tRoom\tTeacher\tTime\tStudents\n"]
     for sec in schedule:
-        schedule_df["Course"].append(sec.cls)
-        schedule_df["Room"].append(sec.room)
-        schedule_df["Teacher"].append(sec.professor)
-        schedule_df["Time"].append(sec.time)
-        schedule_df["Students"].append(sec.accepted)
-    schedule_df = pd.DataFrame.from_dict(schedule_df)
-    schedule_df.to_csv(output_file)
+        students = ""
+        for student in sec.accepted:
+            students += f"{student} "
+        lines.append(
+            f"{sec.cls}\t{sec.room}\t{sec.professor}\t{sec.time}\t{students}\n")
+
+    #     schedule_df["Course"].append(sec.cls)
+    #     schedule_df["Room"].append(sec.room)
+    #     schedule_df["Teacher"].append(sec.professor)
+    #     schedule_df["Time"].append(sec.time)
+    #     schedule_df["Students"].append(sec.accepted)
+    # schedule_df = pd.DataFrame.from_dict(schedule_df)
+
+    with open(output_file, "w") as file:
+        file.writelines(lines)
 
 
+# read format data from list of constraints and prefs
+def prep_data(constraints, student_prefs):
+    row = []
+    with open(constraints, "r") as file:
+        row = file.readlines()
+
+    i = 0
+    rows = int(row[i][-2]) + 1
+    times = [str(i) for i in range(int(row[i][-2]))]
+    i += 1
+    while row[i].split()[0] != "Rooms":
+        idx = re.search(r"[0-9]+[\s\t]+", row[0])
+        times[i] = row[i][idx.end(0):]
+        i += 1
+
+    rooms = {"room": [], "capacity": []}
+
+    i += 1
+    while row[i].split()[0] != "Classes":
+        r = row[i].split()
+        rooms["room"].append(r[0])
+        rooms["capacity"].append(int(r[1]))
+        i += 1
+    rooms = pd.DataFrame.from_dict(rooms)
+
+    profs = {}
+    classes = {}
+    rows = int(row[i].split()[1]) + 2
+    i += 2
+    while i < rows:
+        r = row[i].split()
+        if profs.get(r[1]) != None:
+            profs[r[1]] += [r[0]]
+        else:
+            profs[r[1]] = [r[0]]
+        classes[r[0]] = r[1]
+        i += 1
+
+    rows = []
+    with open(student_prefs, "r") as file:
+        rows = file.readlines()
+
+    students = {"name": [], "class_list": []}
+    for row in rows[1:]:
+        r = row.split()
+        students["name"].append(r[0])
+        students["class_list"].append(r[1:])
+
+    students = pd.DataFrame.from_dict(students)
+
+    return (students, classes, rooms, times, profs)
+
+
+# deprecated
 # preprocess haverford data
 def prep_hav_data(enrollment_data):
     dicts = Hav.get_data_list_of_dicts(enrollment_data)
@@ -617,6 +697,7 @@ def prep_hav_data(enrollment_data):
     return (student_prefs_df, classes, rooms_df, class_times, profs)
 
 
+# deprecated
 # preprocess bryn mawr data
 def prep_bmc_data(enrollment_data):
     dicts = BMC.get_data_list_of_dicts(enrollment_data)
