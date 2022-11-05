@@ -15,6 +15,7 @@ import pandas as pd
 import numpy as np
 import brynmawr.get_bmc_info as bmc
 import haverford.get_haverford_info as hav
+from sbbst import *
 
 
 # static counter class for experimental timekeeping
@@ -45,6 +46,7 @@ class Section:
     accepted = []
     professor = None
     room = None
+    tmax = 0
 
     def __init__(self, time, cls, applicants, room=None):
         # We can and should add professor to this?
@@ -52,6 +54,7 @@ class Section:
         self.room = room
         self.cls = cls
         self.applicants = applicants
+        self.tmax = len(applicants)
 
     def __repr__(self) -> str:
         return self.__str__()
@@ -62,11 +65,17 @@ class Section:
             + " Accepted: " + str(self.accepted)
 
 
+def get_section_val(sec: Section):
+    return sec.tmax
+
+
 # todo: priority queue
 # todo: make sure students only enrolled in at most 4 classes
 def make_schedule(students, classes, rooms, times, profs):
     # array of sections
     schedule = []
+
+    tree = sbbst(getVal=get_section_val)
 
     # total starting sections
     sections = {}
@@ -89,7 +98,9 @@ def make_schedule(students, classes, rooms, times, profs):
         # set applicants for all times of the section
         for time in times:
             Counter.tick()
-            sections[cls][time] = Section(time, cls, applicants[:])
+            sec = Section(time, cls, applicants[:])
+            sections[cls][time] = sec
+            tree.insert(sec)
 
     # get sorted list of rooms for each section
     Counter.tick(len(rooms) * (int)(np.log2(len(rooms))))

@@ -327,7 +327,7 @@ class sbbst():
                     aux.append(q.right)
                     # Print of the _ and the values of the nodes
                     line += ' '*(self.sumsizes[q.left.place+1]-past) + '_'*(self.sumsizes[q.place]-self.sumsizes[q.left.place+1]) + str(
-                        q.val) + '_'*(self.sumsizes[q.right.place]-self.sumsizes[q.place+1])
+                        self.getVal(q.val)) + '_'*(self.sumsizes[q.right.place]-self.sumsizes[q.place+1])
                     past = self.sumsizes[q.right.place]
                     # Print of the arms of the Tree
                     nextline += ' '*(self.sumsizes[q.left.place+1]-nextpast-1) + '/' + ' '*(
@@ -337,7 +337,7 @@ class sbbst():
                     aux.append(q.left)
                     # Print of the _ and the values of the nodes
                     line += ' '*(self.sumsizes[q.left.place+1]-past) + '_'*(
-                        self.sumsizes[q.place]-self.sumsizes[q.left.place+1]) + str(q.val)
+                        self.sumsizes[q.place]-self.sumsizes[q.left.place+1]) + str(self.getVal(q.val))
                     past = self.sumsizes[q.place+1]
                     # Print of the arms of the Tree
                     nextline += ' ' * \
@@ -346,7 +346,7 @@ class sbbst():
                 elif q.right:
                     aux.append(q.right)
                     # Print of the _ and the values of the nodes
-                    line += ' '*(self.sumsizes[q.place]-past)+str(q.val)+'_'*(
+                    line += ' '*(self.sumsizes[q.place]-past)+str(self.getVal(q.val))+'_'*(
                         self.sumsizes[q.right.place]-self.sumsizes[q.place+1])
                     past = self.sumsizes[q.right.place]
                     # Print of the arms of the Tree
@@ -355,7 +355,8 @@ class sbbst():
                         '\\' + ' '*(self.sizes[q.right.place]-1)
                     nextpast = self.sumsizes[q.right.place+1]
                 else:
-                    line += ' '*(self.sumsizes[q.place]-past)+str(q.val)
+                    line += ' ' * \
+                        (self.sumsizes[q.place]-past)+str(self.getVal(q.val))
                     past = self.sumsizes[q.place+1]
             # Add the lines to the output string
             outstr += line + '\n' + nextline + '\n'
