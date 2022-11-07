@@ -84,11 +84,10 @@ def make_schedule(students, classes, rooms, times, profs):
     t0 = ts.time() * 1000
     # array of sections
     schedule = []
-    schedule_dict = {}
 
     # total starting sections
     sections = {}
-    sections_list = []
+    tree = sbbst(fun=cmp_sections)
     id = 0
     for cls in classes.keys():
         sections[cls] = {}
@@ -110,8 +109,9 @@ def make_schedule(students, classes, rooms, times, profs):
         for time in times:
             Counter.tick()
             sec = Section(id, time, cls, applicants[:])
+            sec.tmax = len(applicants)
             sections[cls][time] = sec
-            sections_list.append(sec)
+            tree.insert(sec)
             id += 1
 
     # get sorted list of rooms for each section
@@ -120,11 +120,6 @@ def make_schedule(students, classes, rooms, times, profs):
     Counter.tick(len(times))
     rooms = {time: sorted_rooms.copy()
              for time in times}            # I don't understand this
-
-    # compute theoretical max times
-    for sec in sections_list:
-        sec.tmax = class_rating(sec)
-    tree = sbbst(sections_list, cmp_sections)
 
     t1 = ts.time() * 1000 - t0
     print(t1)
@@ -164,13 +159,15 @@ def make_schedule(students, classes, rooms, times, profs):
             except:
                 pass
 
+        t2 = ts.time() * 1000 - t1
+
         # can't schedule multiple students at the same time
         # is there a way to speed this up?
         for cls in sections.keys():
+            for student in sec.accepted:
+                if student in students["cl"][max_time].applicants:
+                    sections[cls][max_time].applicants.remove(student)
             try:
-                for student in sec.accepted:
-                    if student in sections[cls][max_time].applicants:
-                        sections[cls][max_time].applicants.remove(student)
                 tree.delete(sections[cls][max_time])
                 sections[cls][max_time].tmax = len(
                     sections[cls][max_time].applicants)
@@ -178,19 +175,11 @@ def make_schedule(students, classes, rooms, times, profs):
             except:
                 pass
 
-        # endwhile
+        t3 = ts.time() * 1000 - t1 - t2
+        print(t2, t3)
 
-        # for time in sections[max_cls]:
-        #     Counter.tick()
-        #     sections[max_cls][time].applicants = []
-        # for cls in profs[sec.professor]:
-        #     Counter.tick()
-        #     sections[cls][max_time].applicants = []
-        # for cls in sections:
-        #     Counter.tick()
-        #     sections[cls][max_time].applicants = []
-        t2 = ts.time() * 1000 - t1
-        print(t2)
+    print(ts.time() * 1000 - t0)
+
     return schedule
 
 
@@ -240,8 +229,8 @@ def prep_data(constraints, student_prefs):
     times = [str(i) for i in range(num_times)]
     i += 1
     while row[i].split()[0] != "Rooms":
-        idx = re.search(r"[0-9]+[\s\t]+", row[0])
-        times[i-1] = row[i][idx.end(0):]
+        idx = re.search(r"[0-9]+[\s\t]+", row[i])
+        times[i-1] = int(idx.group(0))
         i += 1
 
     rooms = {"room": [], "capacity": []}
@@ -271,11 +260,10 @@ def prep_data(constraints, student_prefs):
     with open(student_prefs, "r") as file:
         rows = file.readlines()
 
-    students = {"name": [], "class_list": []}
+    students = {}
     for row in rows[1:]:
         r = row.split()
-        students["name"].append(r[0])
-        students["class_list"].append(r[1:])
+        students[r[0]] = r[1:]
 
     students = pd.DataFrame.from_dict(students)
 
