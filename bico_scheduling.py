@@ -164,10 +164,10 @@ def make_schedule(students, classes, rooms, times, profs):
         # can't schedule multiple students at the same time
         # is there a way to speed this up?
         for cls in sections.keys():
-            for student in sec.accepted:
-                if student in students["cl"][max_time].applicants:
-                    sections[cls][max_time].applicants.remove(student)
             try:
+                for student in sec.accepted:
+                    if student in students["cl"][max_time].applicants:
+                        sections[cls][max_time].applicants.remove(student)
                 tree.delete(sections[cls][max_time])
                 sections[cls][max_time].tmax = len(
                     sections[cls][max_time].applicants)
