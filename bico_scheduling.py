@@ -16,6 +16,7 @@ import numpy as np
 import brynmawr.get_bmc_info as bmc
 import haverford.get_haverford_info as hav
 from sbbst import *
+import time as ts
 
 
 # static counter class for experimental timekeeping
@@ -39,22 +40,22 @@ class Counter:
 
 # Section class for holding data for each timeslot and class
 class Section:
+    id = -1
     time = None
     room = None
     cls = None  # Class
     applicants = []
     accepted = []
     professor = None
-    room = None
     tmax = 0
 
-    def __init__(self, time, cls, applicants, room=None):
+    def __init__(self, id, time, cls, applicants, room=None):
         # We can and should add professor to this?
+        self.id = id
         self.time = time
         self.room = room
         self.cls = cls
         self.applicants = applicants
-        self.tmax = len(applicants)
 
     def __repr__(self) -> str:
         return self.__str__()
@@ -62,23 +63,33 @@ class Section:
     def __str__(self) -> str:
         return "Class: " + str(self.cls) + " Professor: " + str(self.professor) + \
             " Time: " + str(self.time) + " Room: " + str(self.room)\
-            + " Accepted: " + str(self.accepted)
+            + " Accepted: " + str(self.accepted) + " TMax: " + str(self.tmax)
 
 
-def get_section_val(sec: Section):
-    return sec.tmax
+def cmp_sections(x: Section, y: Section):
+    if x.tmax > y.tmax:
+        return True
+    elif x.tmax == y.tmax:
+        if x.id > y.id:
+            return True
+        else:
+            return False
+    else:
+        return False
 
 
 # todo: priority queue
 # todo: make sure students only enrolled in at most 4 classes
 def make_schedule(students, classes, rooms, times, profs):
+    t0 = ts.time() * 1000
     # array of sections
     schedule = []
-
-    tree = sbbst(getVal=get_section_val)
+    schedule_dict = {}
 
     # total starting sections
     sections = {}
+    sections_list = []
+    id = 0
     for cls in classes.keys():
         sections[cls] = {}
 
@@ -98,9 +109,10 @@ def make_schedule(students, classes, rooms, times, profs):
         # set applicants for all times of the section
         for time in times:
             Counter.tick()
-            sec = Section(time, cls, applicants[:])
+            sec = Section(id, time, cls, applicants[:])
             sections[cls][time] = sec
-            tree.insert(sec)
+            sections_list.append(sec)
+            id += 1
 
     # get sorted list of rooms for each section
     Counter.tick(len(rooms) * (int)(np.log2(len(rooms))))
@@ -109,54 +121,65 @@ def make_schedule(students, classes, rooms, times, profs):
     rooms = {time: sorted_rooms.copy()
              for time in times}            # I don't understand this
 
-    # while there are valid classes left
-    while (True):
-        # todo: naive way of doing this, must fix!!!
-        # search for the class with the largest possible size
-        max_size = 0
-        name = ""
-        max_cls = None
-        max_time = 0
-        for cls in sections.keys():  # Class
-            for time in sections[cls].keys():  # Time
-                s, n = class_size(sections[cls][time], rooms)
-                if max_size < s:
-                    Counter.tick()
-                    max_size = s
-                    name = n
-                    max_cls = cls
-                    max_time = time
-        if max_size == 0:
-            break
+    # compute theoretical max times
+    for sec in sections_list:
+        sec.tmax = class_rating(sec)
+    tree = sbbst(sections_list, cmp_sections)
 
-        # get the room info and remove the room from the current section
+    t1 = ts.time() * 1000 - t0
+    print(t1)
+    # while there are valid classes left
+    while (tree.head is not None):
+        t1 = ts.time() * 1000
+        max_sec: Section = tree.getMaxVal()
+        max_time = max_sec.time
+        max_cls = max_sec.cls
+        max_size = max_sec.tmax
+
+        # get the room info and remove the room from the current time
         idx = rooms[max_time].index[0]
         room = rooms[max_time]["room"][idx]
+        room_size = rooms[max_time]["capacity"][idx]
         rooms[max_time].drop(idx, inplace=True)
         # get section info and append to final schedule
         sec = sections[max_cls][max_time]
         sec.room = room
         sec.professor = classes[max_cls]
-        sec.accepted = sec.applicants[:min(max_size, len(sec.applicants))]
+        sec.accepted = sec.applicants[:min(room_size, len(sec.applicants))]
+
+        # if (schedule_dict.get((max_cls, max_time, max_sec.professor)) is None):
+        # schedule_dict[(max_cls, max_time, max_sec.professor)] = max_sec
         schedule.append(sec)
 
         # remove conflicting sections from contention
+        for time in sections[max_cls].keys():
+            tree.delete(sections[max_cls][time])
         sections.pop(max_cls)
+
         for cls in profs[sec.professor]:
             Counter.tick()
             try:
+                tree.delete(sections[cls][max_time])
                 sections[cls].pop(max_time)  # Love this
             except:
-                #print(max_cls, cls)
                 pass
 
         # can't schedule multiple students at the same time
         # is there a way to speed this up?
         for cls in sections.keys():
-            for student in sec.accepted:
-                if max_time in sections[cls].keys() and student in sections[cls][max_time].applicants:
-                    sections[cls][max_time].applicants.remove(student)
+            try:
+                for student in sec.accepted:
+                    if student in sections[cls][max_time].applicants:
+                        sections[cls][max_time].applicants.remove(student)
+                tree.delete(sections[cls][max_time])
+                sections[cls][max_time].tmax = len(
+                    sections[cls][max_time].applicants)
+                tree.insert(sections[cls][max_time])
+            except:
+                pass
+
         # endwhile
+
         # for time in sections[max_cls]:
         #     Counter.tick()
         #     sections[max_cls][time].applicants = []
@@ -166,18 +189,20 @@ def make_schedule(students, classes, rooms, times, profs):
         # for cls in sections:
         #     Counter.tick()
         #     sections[cls][max_time].applicants = []
-
+        t2 = ts.time() * 1000 - t1
+        print(t2)
     return schedule
 
 
 # function for finding max class size of a section :D
-def class_size(section: Section, rooms: dict):
-    if len(rooms[section.time]) == 0:
-        return (0, "")
-    idx = rooms[section.time].index[0]
-    size = min(len(section.applicants), rooms[section.time]["capacity"][idx])
-    name = rooms[section.time]["room"][idx]
-    return (size, name)
+def class_rating(section: Section):
+    return len(section.applicants)
+    # if len(rooms[section.time]) == 0:
+    #     return (0, "")
+    # idx = rooms[section.time].index[0]
+    # size = min(len(section.applicants), rooms[section.time]["capacity"][idx])
+    # name = rooms[section.time]["room"][idx]
+    # return (size, name)
 
 
 # find the accuracy of the schedule

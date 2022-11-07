@@ -10,6 +10,13 @@ def getVal(val: asdf):
     return val.a
 
 
-q = bst.sbbst([asdf(1), asdf(2), asdf(1.5)], getVal=getVal)
+def cmp_asdf(x: asdf, y: asdf):
+    return x.a > y.a
 
-print(q)
+
+lst = [asdf(1), asdf(2), asdf(1.5)]
+q: bst.sbbst = bst.sbbst(lst, fun=cmp_asdf)
+q.delete(lst[0])
+lst[0].a = 3
+q.insert(lst[0])
+print(q.getMaxVal().a)
