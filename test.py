@@ -9,5 +9,6 @@ students, classes, rooms, times, profs = bs.prep_data(
 
 schedule = bs.make_schedule(students, classes, rooms, times, profs)
 
-print("schedule rating:", bs.schedule_rating(schedule))
+
+print("schedule rating:", bs.schedule_rating(schedule, students))
 bs.schedule_to_file(schedule, "test/schedule.txt")
