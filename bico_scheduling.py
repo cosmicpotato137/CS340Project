@@ -230,7 +230,9 @@ def schedule_rating(schedule, students):
     total = 0
     accepted = 0
     for key in students.keys():
-        total += len(students[key])
+        for cls in students[key]:
+            if cls in schedule.keys():
+                total += 1
     for key in schedule.keys():
         for app in schedule[key].applicants.keys():
             accepted += schedule[key].applicants[app]
@@ -243,8 +245,9 @@ def schedule_to_file(schedule, output_file):
     lines = ["Course\tRoom\tTeacher\tTime\tStudents\n"]
     for key in schedule.keys():
         students = ""
-        for student in schedule[key].accepted:
-            students += f"{student} "
+        for student in schedule[key].applicants:
+            if schedule[key].applicants[student]:
+                students += f"{student} "
         lines.append(
             f"{schedule[key].cls}\t{schedule[key].room}\t{schedule[key].professor}\t{schedule[key].time}\t{students}\n")
 
