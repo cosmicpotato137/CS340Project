@@ -16,6 +16,7 @@ import numpy as np
 import brynmawr.get_bmc_info as bmc
 import haverford.get_haverford_info as hav
 from sbbst import *
+import time as ts
 
 
 # static counter class for experimental timekeeping
@@ -72,6 +73,7 @@ def get_section_val(sec: Section):
 # todo: priority queue
 # todo: make sure students only enrolled in at most 4 classes
 def make_schedule(students, classes, rooms, times, profs):
+    t0 = ts.time() * 1000
     # array of sections
     schedule = []
 
@@ -109,8 +111,11 @@ def make_schedule(students, classes, rooms, times, profs):
     rooms = {time: sorted_rooms.copy()
              for time in times}            # I don't understand this
 
+    t1 = ts.time() * 1000 - t0
+    print(t1)
     # while there are valid classes left
     while (True):
+        t1 = ts.time() * 1000
         # todo: naive way of doing this, must fix!!!
         # search for the class with the largest possible size
         max_size = 0
@@ -156,6 +161,9 @@ def make_schedule(students, classes, rooms, times, profs):
             for student in sec.accepted:
                 if max_time in sections[cls].keys() and student in sections[cls][max_time].applicants:
                     sections[cls][max_time].applicants.remove(student)
+
+        t2 = ts.time() * 1000 - t1
+        print(t2)
         # endwhile
         # for time in sections[max_cls]:
         #     Counter.tick()
