@@ -40,17 +40,18 @@ class Counter:
 
 # Section class for holding data for each timeslot and class
 class Section:
-    def __init__(self, id, time, cls, applicants, room=None):
+    def __init__(self, id, time, cls, cls_p):
         # We can and should add professor to this?
         self.id = id
         self.time = time
-        self.room = room
+        self.room = None
         self.cls = cls
-        self.applicants = applicants
+        self.applicants = [{}, {}, {}, {}]
         self.size = 0
         self.accepted = []
         self.tmax = 0
         self.professor = None
+        self.class_p = cls_p
 
     def __repr__(self) -> str:
         return self.__str__()
@@ -65,8 +66,13 @@ def cmp_sections(x: Section, y: Section):
     if x.tmax > y.tmax:
         return True
     elif x.tmax == y.tmax:
-        if x.id > y.id:
+        if x.class_p > y.class_p:
             return True
+        elif x.class_p == y.class_p:
+            if x.id > y.id:
+                return True
+            else:
+                return False
         else:
             return False
     else:
@@ -75,7 +81,7 @@ def cmp_sections(x: Section, y: Section):
 
 # todo: priority queue
 # todo: make sure students only enrolled in at most 4 classes
-def make_schedule(students, classes, rooms, times, profs):
+def make_schedule(students, classes, rooms, times, profs, student_ps=None, class_ps=None):
     t0 = ts.time() * 1000
     # array of sections
     schedule = {}
@@ -89,7 +95,7 @@ def make_schedule(students, classes, rooms, times, profs):
         # set applicants for all times of the section
         for time in times:
             Counter.tick()
-            sec = Section(id, time, cls, {})
+            sec = Section(id, time, cls, class_ps[cls])
             sections[cls][time] = sec
             sections_list.append(sec)
             id += 1
@@ -104,7 +110,8 @@ def make_schedule(students, classes, rooms, times, profs):
             if cls not in sections.keys():
                 continue
             for time in sections[cls].keys():
-                sections[cls][time].applicants[student_id] = False
+                sections[cls][time].applicants[student_ps[student_id]
+                                               ][student_id] = False
                 sections[cls][time].tmax += 1
 
     tree = sbbst(sections_list, fun=cmp_sections)
@@ -142,12 +149,13 @@ def make_schedule(students, classes, rooms, times, profs):
         sec.size = room_size
 
         num_acc = 0
-        for key in sec.applicants.keys():
-            sec.applicants[key] = True
-            booked_times[key].append(max_time)
-            num_acc += 1
-            if num_acc >= sec.size:
-                break
+        for i in range(1, 5):
+            for key in sec.applicants[-i].keys():
+                sec.applicants[-i][key] = True
+                booked_times[key].append(max_time)
+                num_acc += 1
+                if num_acc >= sec.size:
+                    break
 
         schedule[max_cls] = sec
 
@@ -171,17 +179,18 @@ def make_schedule(students, classes, rooms, times, profs):
         # ti = ts.time() * 1000
         # can't schedule multiple students at the same time
         # is there a way to speed this up?
-        for student in sec.applicants.keys():
-            if sec.applicants[student] == False:
-                continue
-            for cls in sections.keys():
-                for time in booked_times[student]:
-                    if time in sections[cls].keys() and student in sections[cls][time].applicants:
-                        sections[cls][time].applicants.pop(student)
-                        tree.delete(sections[cls][time])
-                        sections[cls][time].tmax = len(
-                            sections[cls][time].applicants)
-                        tree.insert(sections[cls][time])
+        for i in range(4):
+            for student in sec.applicants[i].keys():
+                if sec.applicants[i][student] == False:
+                    continue
+                for cls in sections.keys():
+                    for time in booked_times[student]:
+                        if time in sections[cls].keys() and student in sections[cls][time].applicants:
+                            sections[cls][time].applicants.pop(student)
+                            tree.delete(sections[cls][time])
+                            sections[cls][time].tmax = len(
+                                sections[cls][time].applicants)
+                            tree.insert(sections[cls][time])
 
         # t3 = ts.time() * 1000 - ti
         # print(t15, t2, t3)
@@ -234,8 +243,9 @@ def schedule_rating(schedule, students):
             if cls in schedule.keys():
                 total += 1
     for key in schedule.keys():
-        for app in schedule[key].applicants.keys():
-            accepted += schedule[key].applicants[app]
+        for i in range(4):
+            for app in schedule[key].applicants[i].keys():
+                accepted += schedule[key].applicants[i][app]
 
     return accepted / total
 
@@ -245,9 +255,10 @@ def schedule_to_file(schedule, output_file):
     lines = ["Course\tRoom\tTeacher\tTime\tStudents\n"]
     for key in schedule.keys():
         students = ""
-        for student in schedule[key].applicants:
-            if schedule[key].applicants[student]:
-                students += f"{student} "
+        for i in range(4):
+            for student in schedule[key].applicants[i].keys():
+                if schedule[key].applicants[i][student]:
+                    students += f"{student} "
         lines.append(
             f"{schedule[key].cls}\t{schedule[key].room}\t{schedule[key].professor}\t{schedule[key].time}\t{students}\n")
 
@@ -303,3 +314,17 @@ def prep_data(constraints, student_prefs):
         students[r[0]] = r[1:]
 
     return (students, classes, rooms, times, profs)
+
+
+def class_priority(classes):
+    p = {}
+    for cls in classes.keys():
+        p[cls] = np.random.randint(0, 3)
+    return p
+
+
+def student_priority(students):
+    p = {}
+    for st in students.keys():
+        p[st] = np.random.randint(1, 4)
+    return p
