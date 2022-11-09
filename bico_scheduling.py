@@ -79,12 +79,13 @@ def cmp_sections(x: Section, y: Section):
         return False
 
 
-# todo: priority queue
 # todo: make sure students only enrolled in at most 4 classes
 def make_schedule(students, classes, rooms, times, profs, student_ps=None, class_ps=None):
     t0 = ts.time() * 1000
     # array of sections
     schedule = {}
+
+    num_rooms = len(rooms)
 
     # init sections
     sections = {}
@@ -97,7 +98,7 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
             Counter.tick()
             sec = Section(id, time, cls, class_ps[cls])
             sections[cls][time] = sec
-            sections_list.append(sec)
+            # sections_list.append(sec)
             id += 1
 
     # set hashmap of booked times
@@ -105,15 +106,19 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
 
     # get sorted list of rooms for each section
     # Counter.tick(len(rooms) * (int)(np.log2(len(rooms))))
-    sorted_rooms = rooms.sort_values(by="capacity", ascending=False)
+    sorted_rooms = rooms.sort_values(
+        by="capacity", ascending=False).reset_index(drop=True)
+    indices = {time: 0 for time in times}
     # Counter.tick(len(times))
 
     # todo: make array of rooms and keep track of timeslot indices
-    rooms = {time: sorted_rooms.copy()
-             for time in times}            # I don't understand this
+    # rooms = {time: sorted_rooms.copy()
+    #  for time in times}            # I don't understand this
 
     # todo: make array of t bst's
     # get student interest
+    t_queues = {}
+
     for student_id in students.keys():
         for cls in students[student_id]:
             # set hashmap of student interest
@@ -122,76 +127,102 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
             for time in sections[cls].keys():
                 sections[cls][time].applicants[student_ps[student_id]
                                                ][student_id] = False
-                sections[cls][time].tmax = class_rating(
-                    sections[cls][time], rooms)
-                sections[cls][time].num_applicants += 1
+                sections[cls][time].tmax += 1
+                # sections[cls][time].num_applicants += 1
 
-    tree = sbbst(sections_list, fun=cmp_sections)
+    for time in times:
+        tree = sbbst(fun=cmp_sections)
+        for cls in sections.keys():
+            tree.insert(sections[cls][time])
+            t_queues[time] = tree
 
     # t1 = ts.time() * 1000 - t0
     # print(t1)
     # while there are valid classes left
-    while (tree.head is not None):
-        max_sec: Section = tree.getMaxVal()
-        max_time = max_sec.time
+    while (True):
+        max_val = 0
+        max_sec = None
+        max_time = None
+        max_room = None
+        for time in times:
+            if t_queues[time].head is not None and indices[time] < num_rooms:
+                sec: Section = t_queues[time].getMaxVal()
+                room = sorted_rooms["capacity"][indices[time]]
+                m = min(sec.tmax, room)
+                if m > max_val:
+                    max_val = m
+                    max_sec = sec
+                    max_time = time
+                    max_room = sorted_rooms["room"][indices[time]]
+
+        if max_val == 0:
+            break
+
+        indices[max_time] += 1  # increment index for chosen time
         max_cls = max_sec.cls
 
-        if rooms[max_time].size == 0:
-            tree.delete(max_sec)
-            continue
+        # max_sec: Section = tree.getMaxVal()
+        # max_time = max_sec.time
+        # max_cls = max_sec.cls
+
+        # if rooms[max_time].size == 0:
+        #     tree.delete(max_sec)
+        #     continue
 
         # t1 = ts.time() * 1000
 
         # get the room info and remove the room from the current time
-        idx = rooms[max_time].index[0]
-        room = rooms[max_time]["room"][idx]
-        room_size = rooms[max_time]["capacity"][idx]
-        rooms[max_time].drop(idx, inplace=True)
+        # idx = rooms[max_time].index[0]
+        # room = rooms[max_time]["room"][idx]
+        # room_size = rooms[max_time]["capacity"][idx]
+        # rooms[max_time].drop(idx, inplace=True)
         # get section info and append to final schedule
-        sec = sections[max_cls][max_time]
-        sec.room = room
-        sec.professor = classes[max_cls]
-        sec.size = room_size
+        max_sec = sections[max_cls][max_time]
+        max_sec.room = max_room
+        max_sec.professor = classes[max_cls]
+        max_sec.size = max_val
 
         num_acc = 0
         for i in range(1, 5):
-            for key in sec.applicants[-i].keys():
-                sec.applicants[-i][key] = True
-                num_acc += 1
-                if num_acc >= sec.size:
+            for key in max_sec.applicants[-i].keys():
+                if num_acc >= max_sec.size:
                     break
+                max_sec.applicants[-i][key] = True
+                num_acc += 1
+            if num_acc >= max_val:
+                break
+        schedule[max_cls] = max_sec
 
-        schedule[max_cls] = sec
+        # print(max_val)
+        # return schedule
 
         # remove conflicting sections from contention
         for time in sections[max_cls].keys():
-            tree.delete(sections[max_cls][time])
-        sections.pop(max_cls)
+            t_queues[time].delete(sections[max_cls][time])
+        # sections.pop(max_cls)
 
         # t15 = ts.time() * 1000 - t1
         # ti = ts.time() * 1000
 
-        for cls in profs[sec.professor]:
+        for cls in profs[max_sec.professor]:
             Counter.tick()
             if cls in sections.keys():
-                tree.delete(sections[cls][max_time])
-                sections[cls].pop(max_time)  # Love this
+                t_queues[max_time].delete(sections[cls][max_time])
+                # sections[cls].pop(max_time)  # Love this
 
         # t2 = ts.time() * 1000 - ti
         # ti = ts.time() * 1000
         # can't schedule multiple students at the same time
         # is there a way to speed this up?
         for i in range(4):
-            for student in sec.applicants[i].keys():
-                if sec.applicants[i][student] == False:
+            for student in max_sec.applicants[i].keys():
+                if max_sec.applicants[i][student] == False:
                     continue
                 for cls in students[student]:
-                    if cls in sections.keys() and time in sections[cls].keys() and student in sections[cls][time].applicants[i].keys():
-                        sections[cls][time].applicants[i].pop(student)
-                        tree.delete(sections[cls][time])
-                        sections[cls][time].tmax = class_rating(
-                            sections[cls][time], rooms)
-                        tree.insert(sections[cls][time])
+                    if cls in sections.keys() and max_time in sections[cls].keys():
+                        t_queues[max_time].delete(sections[cls][max_time])
+                        sections[cls][max_time].tmax -= 1
+                        t_queues[max_time].insert(sections[cls][max_time])
 
     print(ts.time() * 1000 - t0)
 
@@ -208,8 +239,9 @@ def assign_students(schedule, students):
                 times.append(schedule[cls].time)
     return schedule
 
-
 # function for finding max class size of a section :D
+
+
 def class_rating(section: Section, rooms):
     if rooms[section.time].empty:
         return 0
@@ -242,7 +274,7 @@ def schedule_to_file(schedule, output_file):
         students = ""
         for i in range(4):
             for student in schedule[key].applicants[i].keys():
-                if schedule[key].applicants[i][student]:
+                if schedule[key].applicants[i][student] == True:
                     students += f"{student} "
         lines.append(
             f"{schedule[key].cls}\t{schedule[key].room}\t{schedule[key].professor}\t{schedule[key].time}\t{students}\n")
