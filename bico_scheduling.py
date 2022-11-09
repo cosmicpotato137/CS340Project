@@ -112,7 +112,7 @@ def make_schedule(students, classes, rooms, times, profs):
              for time in times}            # I don't understand this
 
     t1 = ts.time() * 1000 - t0
-    print(t1)
+    # print(t1)
     # while there are valid classes left
     while (True):
         t1 = ts.time() * 1000
@@ -163,7 +163,7 @@ def make_schedule(students, classes, rooms, times, profs):
                     sections[cls][max_time].applicants.remove(student)
 
         t2 = ts.time() * 1000 - t1
-        print(t2)
+        # print(t2)
         # endwhile
         # for time in sections[max_cls]:
         #     Counter.tick()
@@ -223,8 +223,8 @@ def prep_data(constraints, student_prefs):
     times = [str(i) for i in range(num_times)]
     i += 1
     while row[i].split()[0] != "Rooms":
-        idx = re.search(r"[0-9]+[\s\t]+", row[0])
-        times[i-1] = row[i][idx.end(0):]
+        times[i-1] = re.search(r"[0-9]+", row[0])
+        # times[i-1] = row[i][idx.end(0):]
         i += 1
 
     rooms = {"room": [], "capacity": []}
