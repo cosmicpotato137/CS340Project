@@ -47,11 +47,10 @@ class Section:
         self.room = None
         self.cls = cls
         self.applicants = [{}, {}, {}, {}]
-        self.size = 0
-        self.accepted = []
-        self.tmax = 0
+        self.size = 0 # min num apps and room size
+        self.tmax = 0 # theoretical max size (num applicants)
         self.professor = None
-        self.class_p = cls_p
+        self.class_p = cls_p # class priority 0-3
 
     def __repr__(self) -> str:
         return self.__str__()
@@ -103,7 +102,14 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
     # set hashmap of booked times
     booked_times = {s: [] for s in students.keys()}
 
-    # get atudent interest
+    # get sorted list of rooms for each section
+    # Counter.tick(len(rooms) * (int)(np.log2(len(rooms))))
+    sorted_rooms = rooms.sort_values(by="capacity", ascending=False)
+    # Counter.tick(len(times))
+    rooms = {time: sorted_rooms.copy()
+             for time in times}            # I don't understand this
+
+    # get student interest
     for student_id in students.keys():
         for cls in students[student_id]:
             # set hashmap of student interest
@@ -112,16 +118,10 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
             for time in sections[cls].keys():
                 sections[cls][time].applicants[student_ps[student_id]
                                                ][student_id] = False
-                sections[cls][time].tmax += 1
+                sections[cls][time].tmax = class_rating(sections[cls][time], rooms)
 
     tree = sbbst(sections_list, fun=cmp_sections)
 
-    # get sorted list of rooms for each section
-    Counter.tick(len(rooms) * (int)(np.log2(len(rooms))))
-    sorted_rooms = rooms.sort_values(by="capacity", ascending=False)
-    Counter.tick(len(times))
-    rooms = {time: sorted_rooms.copy()
-             for time in times}            # I don't understand this
 
     # t1 = ts.time() * 1000 - t0
     # print(t1)
@@ -169,11 +169,9 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
 
         for cls in profs[sec.professor]:
             Counter.tick()
-            try:
+            if cls in sections.keys():
                 tree.delete(sections[cls][max_time])
                 sections[cls].pop(max_time)  # Love this
-            except:
-                pass
 
         # t2 = ts.time() * 1000 - ti
         # ti = ts.time() * 1000
@@ -185,11 +183,10 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
                     continue
                 for cls in sections.keys():
                     for time in booked_times[student]:
-                        if time in sections[cls].keys() and student in sections[cls][time].applicants:
-                            sections[cls][time].applicants.pop(student)
+                        if time in sections[cls].keys() and student in sections[cls][time].applicants[i].keys():
+                            sections[cls][time].applicants[i].pop(student)
                             tree.delete(sections[cls][time])
-                            sections[cls][time].tmax = len(
-                                sections[cls][time].applicants)
+                            sections[cls][time].tmax = class_rating(sections[cls][time], rooms[max_time])
                             tree.insert(sections[cls][time])
 
         # t3 = ts.time() * 1000 - ti
@@ -224,14 +221,13 @@ def assign_students(schedule, students):
 
 
 # function for finding max class size of a section :D
-def class_rating(section: Section):
-    return len(section.applicants)
-    # if len(rooms[section.time]) == 0:
-    #     return (0, "")
-    # idx = rooms[section.time].index[0]
-    # size = min(len(section.applicants), rooms[section.time]["capacity"][idx])
-    # name = rooms[section.time]["room"][idx]
-    # return (size, name)
+def class_rating(section: Section, rooms):
+    if len(rooms[section.time]) == 0:
+        return 0
+    idx = rooms[section.time].index[0]
+    size = min(len(section.applicants), rooms[section.time]["capacity"][idx])
+    name = rooms[section.time]["room"][idx]
+    return size
 
 
 # find the accuracy of the schedule
