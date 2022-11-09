@@ -117,7 +117,7 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
 
     # todo: make array of t bst's
     # get student interest
-    t_queues = {}
+    t_trees = {}
 
     for student_id in students.keys():
         for cls in students[student_id]:
@@ -134,19 +134,19 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
         tree = sbbst(fun=cmp_sections)
         for cls in sections.keys():
             tree.insert(sections[cls][time])
-            t_queues[time] = tree
+            t_trees[time] = tree
 
     # t1 = ts.time() * 1000 - t0
     # print(t1)
     # while there are valid classes left
-    while (True):
+    while (len(sections.keys()) > 0):
         max_val = 0
         max_sec = None
         max_time = None
         max_room = None
         for time in times:
-            if t_queues[time].head is not None and indices[time] < num_rooms:
-                sec: Section = t_queues[time].getMaxVal()
+            if t_trees[time].head is not None and indices[time] < num_rooms:
+                sec: Section = t_trees[time].getMaxVal()
                 room = sorted_rooms["capacity"][indices[time]]
                 m = min(sec.tmax, room)
                 if m > max_val:
@@ -198,8 +198,8 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
 
         # remove conflicting sections from contention
         for time in sections[max_cls].keys():
-            t_queues[time].delete(sections[max_cls][time])
-        # sections.pop(max_cls)
+            t_trees[time].delete(sections[max_cls][time])
+        sections.pop(max_cls)
 
         # t15 = ts.time() * 1000 - t1
         # ti = ts.time() * 1000
@@ -207,8 +207,8 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
         for cls in profs[max_sec.professor]:
             Counter.tick()
             if cls in sections.keys():
-                t_queues[max_time].delete(sections[cls][max_time])
-                # sections[cls].pop(max_time)  # Love this
+                t_trees[max_time].delete(sections[cls][max_time])
+                sections[cls].pop(max_time)  # Love this
 
         # t2 = ts.time() * 1000 - ti
         # ti = ts.time() * 1000
@@ -220,9 +220,9 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
                     continue
                 for cls in students[student]:
                     if cls in sections.keys() and max_time in sections[cls].keys():
-                        t_queues[max_time].delete(sections[cls][max_time])
+                        t_trees[max_time].delete(sections[cls][max_time])
                         sections[cls][max_time].tmax -= 1
-                        t_queues[max_time].insert(sections[cls][max_time])
+                        t_trees[max_time].insert(sections[cls][max_time])
 
     print(ts.time() * 1000 - t0)
 
