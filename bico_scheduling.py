@@ -47,10 +47,11 @@ class Section:
         self.room = None
         self.cls = cls
         self.applicants = [{}, {}, {}, {}]
-        self.size = 0 # min num apps and room size
-        self.tmax = 0 # theoretical max size (num applicants)
+        self.size = 0  # min num apps and room size
+        self.tmax = 0  # theoretical max size (num applicants)
         self.professor = None
-        self.class_p = cls_p # class priority 0-3
+        self.class_p = cls_p  # class priority 0-3
+        self.num_applicants = 0
 
     def __repr__(self) -> str:
         return self.__str__()
@@ -100,15 +101,18 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
             id += 1
 
     # set hashmap of booked times
-    booked_times = {s: [] for s in students.keys()}
+    # booked_times = {s: [] for s in students.keys()}
 
     # get sorted list of rooms for each section
     # Counter.tick(len(rooms) * (int)(np.log2(len(rooms))))
     sorted_rooms = rooms.sort_values(by="capacity", ascending=False)
     # Counter.tick(len(times))
+
+    # todo: make array of rooms and keep track of timeslot indices
     rooms = {time: sorted_rooms.copy()
              for time in times}            # I don't understand this
 
+    # todo: make array of t bst's
     # get student interest
     for student_id in students.keys():
         for cls in students[student_id]:
@@ -118,10 +122,11 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
             for time in sections[cls].keys():
                 sections[cls][time].applicants[student_ps[student_id]
                                                ][student_id] = False
-                sections[cls][time].tmax = class_rating(sections[cls][time], rooms)
+                sections[cls][time].tmax = class_rating(
+                    sections[cls][time], rooms)
+                sections[cls][time].num_applicants += 1
 
     tree = sbbst(sections_list, fun=cmp_sections)
-
 
     # t1 = ts.time() * 1000 - t0
     # print(t1)
@@ -152,7 +157,6 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
         for i in range(1, 5):
             for key in sec.applicants[-i].keys():
                 sec.applicants[-i][key] = True
-                booked_times[key].append(max_time)
                 num_acc += 1
                 if num_acc >= sec.size:
                     break
@@ -181,28 +185,13 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
             for student in sec.applicants[i].keys():
                 if sec.applicants[i][student] == False:
                     continue
-                for cls in sections.keys():
-                    for time in booked_times[student]:
-                        if time in sections[cls].keys() and student in sections[cls][time].applicants[i].keys():
-                            sections[cls][time].applicants[i].pop(student)
-                            tree.delete(sections[cls][time])
-                            sections[cls][time].tmax = class_rating(sections[cls][time], rooms[max_time])
-                            tree.insert(sections[cls][time])
-
-        # t3 = ts.time() * 1000 - ti
-        # print(t15, t2, t3)
-
-        # for cls in sections.keys():
-        #     try:
-        #         for student in sec.accepted:
-        #             if student in sections[cls][max_time].applicants:
-        #                 sections[cls][max_time].applicants.remove(student)
-        #         tree.delete(sections[cls][max_time])
-        #         sections[cls][max_time].tmax = len(
-        #             sections[cls][max_time].applicants)
-        #         tree.insert(sections[cls][max_time])
-        #     except:
-        #         pass
+                for cls in students[student]:
+                    if cls in sections.keys() and time in sections[cls].keys() and student in sections[cls][time].applicants[i].keys():
+                        sections[cls][time].applicants[i].pop(student)
+                        tree.delete(sections[cls][time])
+                        sections[cls][time].tmax = class_rating(
+                            sections[cls][time], rooms)
+                        tree.insert(sections[cls][time])
 
     print(ts.time() * 1000 - t0)
 
@@ -222,10 +211,10 @@ def assign_students(schedule, students):
 
 # function for finding max class size of a section :D
 def class_rating(section: Section, rooms):
-    if len(rooms[section.time]) == 0:
+    if rooms[section.time].empty:
         return 0
     idx = rooms[section.time].index[0]
-    size = min(len(section.applicants), rooms[section.time]["capacity"][idx])
+    size = min(section.num_applicants, rooms[section.time]["capacity"][idx])
     name = rooms[section.time]["room"][idx]
     return size
 
