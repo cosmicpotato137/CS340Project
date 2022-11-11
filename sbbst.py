@@ -37,9 +37,9 @@ class sbbst():
         if not node:
             return False
         else:
-            if self.getVal(node.val) < self.getVal(val):
+            if self.cmpVals(val, node.val):
                 return self.search(node.right, val)
-            elif self.getVal(val) < self.getVal(node.val):
+            elif self.cmpVals(node.val, val):
                 return self.search(node.left, val)
             else:
                 return True

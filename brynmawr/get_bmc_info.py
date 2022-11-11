@@ -111,16 +111,36 @@ def get_prof_courses(list_of_dicts):
 
 
 def get_class_times(list_of_dicts):
-    times = []
+    times = {"M": set([]), "T": set([]), "W": set([]),
+             "R": set([]), "F": set([])}
     for dict in list_of_dicts:
         start = dict["Srt1 AM/PM"]
         end = dict["End 1 AMPM"]
         days = dict["Days 1"]
         class_time = (start, end, days)
         campus = dict["Catalog"][0]
+
         if not class_time in times and campus == "B" and not start == "" \
                 and not end == "" and not days == "":
-            times.append(class_time)
+            i = 0
+            while (i < len(days)):
+                if i < len(days) - 1 and days[i:i+2] == "TH":
+                    times["R"].add((start, end))
+                    i += 1
+                elif i < len(days) - 1 and i > 0 and days[i] == "-":
+                    times[days[i-1]].add((start, end))
+                    s = False
+                    for key in times.keys():
+                        if times[key] == days[i-1]:
+                            s = True
+                        if s == True:
+                            times[key].add((start, end))
+                        if times[key] == days[i+1]:
+                            s = False
+                else:
+                    times[days[i]].add((start, end))
+                i += 1
+
     return times
 
 # One possibility for how to find out which labs go with which courses.
@@ -184,11 +204,16 @@ def write_prefs_to_file(list_of_dicts, filename):
 
 def write_class_times_to_file(list_of_dicts, f):
     class_times = get_class_times(list_of_dicts)
-    f.write("Class Times\t" + str(len(class_times)) + "\n")
-    i = 1
-    for (start, end, days) in class_times:
-        f.write(str(i) + "\t" + start + " " + end + " " + days + "\n")
-        i = i + 1
+    i = 0
+    for key in class_times:
+        for time in class_times[key]:
+            i += 1
+    f.write("Class Times\t" + str(i) + "\n")
+    i = 0
+    for key in class_times:
+        for time in class_times[key]:
+            f.write(str(i) + "\t" + key + " " + time[0] + " " + time[1] + "\n")
+            i += 1
 
 
 def write_rooms_to_file(list_of_dicts, f):

@@ -17,6 +17,7 @@ import brynmawr.get_bmc_info as bmc
 import haverford.get_haverford_info as hav
 from sbbst import *
 import time as ts
+import datetime as dt
 
 
 # static counter class for experimental timekeeping
@@ -85,6 +86,7 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
 
     # array of sections
     schedule = {}
+    reg_students = {student: [] for student in students.keys()}
 
     num_rooms = len(rooms)
 
@@ -164,11 +166,10 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
         for i in range(1, 5):
             for key in max_sec.applicants[-i].keys():
                 if num_acc >= max_sec.size:
-                    break
-                max_sec.applicants[-i][key] = True
-                num_acc += 1
-            if num_acc >= max_val:
-                break
+                    reg_students[key].append((max_cls, max_time, "NO_ROOM"))
+                else:
+                    max_sec.applicants[-i][key] = True
+                    num_acc += 1
 
         # append section to schedule
         schedule[max_cls] = max_sec
@@ -176,8 +177,9 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
         # print(max_val)
         # return schedule
 
+        asdf = False
         # remove conflicting sections from contention
-        for time in sections[max_cls].keys():
+        for time in t_trees.keys():
             t_trees[time].delete(sections[max_cls][time])
         sections.pop(max_cls)
 
@@ -188,8 +190,7 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
         for cls in profs[max_sec.professor]:
             Counter.tick()
             if cls in sections.keys():
-                t_trees[max_time].delete(sections[cls][max_time])
-                sections[cls].pop(max_time)  # Love this
+                t_trees[max_time].delete(max_sec)
 
         # Handling scheduling multiple applicants at the same time
         for i in range(4):
@@ -197,15 +198,18 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
                 if max_sec.applicants[i][student] == False:
                     continue
                 for cls in students[student]:
-                    if cls in sections.keys() and max_time in sections[cls].keys():
+                    if cls in sections.keys() and max_time in sections[cls].keys() and\
+                            student in sections[cls][max_time].applicants[i]:
                         sections[cls][max_time].applicants[i].pop(student)
+                        reg_students[student].append(
+                            (max_cls, max_time, "TIME_CONFLICT"))
                         t_trees[max_time].delete(sections[cls][max_time])
                         sections[cls][max_time].tmax -= 1
                         t_trees[max_time].insert(sections[cls][max_time])
 
     print(ts.time() * 1000 - t0)
 
-    return schedule
+    return schedule, reg_students
 
 
 # def assign_students(schedule, students):
@@ -273,7 +277,11 @@ def prep_data(constraints, student_prefs):
     i += 1
     while row[i].split()[0] != "Rooms":
         idx = re.search(r"[0-9]+[\s\t]+", row[i])
-        times[i-1] = int(idx.group(0))
+        # t0 = re.search(r"[0-9]?[0-9]:[0-9]{2}\s+(AM|PM)", row[i])
+        # t1 = re.search(r"[0-9]?[0-9]:[0-9]{2}\s+(AM|PM)", row[i][t0.end(0):])
+        # d = re.search(r"[\t\s]+.*", row[i][t1.end(0):])
+        # print(t0.group(0), t1.group(0), d.group(0))
+        times[i-1] = int(idx.group(0)[:-1])
         i += 1
 
     rooms = {"room": [], "capacity": []}
@@ -286,17 +294,20 @@ def prep_data(constraints, student_prefs):
         i += 1
     rooms = pd.DataFrame.from_dict(rooms)
 
-    profs = {}
+    profs = {"-1": []}
     classes = {}
     rows = int(row[i].split()[1]) + i + 2
     i += 2
     while i < rows:
         r = row[i].split()
-        if profs.get(r[1]) != None:
-            profs[r[1]] += [r[0]]
+        if len(r) > 1:
+            if profs.get(r[1]) != None:
+                profs[r[1]].append([0])
+            else:
+                profs[r[1]] = [r[0]]
         else:
-            profs[r[1]] = [r[0]]
-        classes[r[0]] = r[1]
+            profs["-1"].append(r[0])
+        classes[r[0]] = "-1"
         i += 1
 
     rows = []
