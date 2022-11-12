@@ -153,10 +153,10 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
         if max_val == 0:
             break
 
-        indices[max_time] += 1  # increment index for chosen time
         max_cls = max_sec.cls
 
         # get section info and append to final schedule
+        indices[max_time] += 1  # increment index for chosen time
         max_sec.room = max_room
         max_sec.professor = classes[max_cls]
         max_sec.size = max_val
@@ -177,9 +177,8 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
         # print(max_val)
         # return schedule
 
-        asdf = False
         # remove conflicting sections from contention
-        for time in t_trees.keys():
+        for time in sections[max_cls].keys():
             t_trees[time].delete(sections[max_cls][time])
         sections.pop(max_cls)
 
@@ -190,7 +189,9 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
         for cls in profs[max_sec.professor]:
             Counter.tick()
             if cls in sections.keys():
-                t_trees[max_time].delete(max_sec)
+                t_trees[max_time].delete(sections[cls][max_time])
+                if max_time in sections[cls].keys():
+                    sections[cls].pop(max_time)  # Love this
 
         # Handling scheduling multiple applicants at the same time
         for i in range(4):
@@ -210,17 +211,6 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
     print(ts.time() * 1000 - t0)
 
     return schedule, reg_students
-
-
-# def assign_students(schedule, students):
-#     for key in students.keys():
-#         times = []
-#         for cls in students[key]:
-#             if cls in schedule.keys() and not (schedule[cls].time in times) and \
-#                     len(schedule[cls].accepted) < schedule[cls].size:
-#                 schedule[cls].accepted.append(key)
-#                 times.append(schedule[cls].time)
-#     return schedule
 
 
 # function for finding max class size of a section :D
@@ -300,14 +290,15 @@ def prep_data(constraints, student_prefs):
     i += 2
     while i < rows:
         r = row[i].split()
-        if len(r) > 1:
+        if len(r) == 2:
             if profs.get(r[1]) != None:
-                profs[r[1]].append([0])
+                profs[r[1]].append(r[0])
             else:
                 profs[r[1]] = [r[0]]
+            classes[r[0]] = r[1]
         else:
             profs["-1"].append(r[0])
-        classes[r[0]] = "-1"
+            classes[r[0]] = "-1"
         i += 1
 
     rows = []
