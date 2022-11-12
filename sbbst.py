@@ -20,8 +20,8 @@ class TreeNode():
 
 class sbbst():
     # It instantiates the class O(1)
-    def __init__(self, valslist=None, getVal=lambda x: x):
-        self.getVal = getVal
+    def __init__(self, valslist=None, fun=lambda x: x):
+        self.cmpVals = fun
         self.head = None
         self.N = 0
         self.count = 0
@@ -37,9 +37,9 @@ class sbbst():
         if not node:
             return False
         else:
-            if self.getVal(node.val) < self.getVal(val):
+            if self.cmpVals(val, node.val):
                 return self.search(node.right, val)
-            elif self.getVal(val) < self.getVal(node.val):
+            elif self.cmpVals(node.val, val):
                 return self.search(node.left, val)
             else:
                 return True
@@ -55,7 +55,7 @@ class sbbst():
             self.N += 1
             return TreeNode(key)
 
-        elif self.getVal(key) < self.getVal(node.val):
+        elif self.cmpVals(node.val, key):
             node.left = self.insertNode(node.left, key)
         else:
             node.right = self.insertNode(node.right, key)
@@ -67,11 +67,11 @@ class sbbst():
         balance = self.getBalance(node)
         # 4: If the node is unbalanced, try out the 2 cases
         if balance > 1:  # Case 1: Left (Left/Right)
-            if self.getVal(key) > self.getVal(node.left.val):
+            if self.cmpVals(key, node.left.val):
                 node.left = self.leftRotate(node.left)
             return self.rightRotate(node)
         if balance < -1:  # Case 2: Right (Left/Right)
-            if self.getVal(key) < self.getVal(node.right.val):
+            if self.cmpVals(node.right.val, key):
                 node.right = self.rightRotate(node.right)
             return self.leftRotate(node)
         # Return the result node
@@ -86,10 +86,9 @@ class sbbst():
         # 1: Standard BST delete
         if not node:
             return node
-
-        elif key < self.getVal(node.val):
+        elif self.cmpVals(node.val, key):
             node.left = self.deleteNode(node.left, key)
-        elif key > self.getVal(node.val):
+        elif self.cmpVals(key, node.val):
             node.right = self.deleteNode(node.right, key)
 
         else:  # key == node.val
@@ -327,7 +326,7 @@ class sbbst():
                     aux.append(q.right)
                     # Print of the _ and the values of the nodes
                     line += ' '*(self.sumsizes[q.left.place+1]-past) + '_'*(self.sumsizes[q.place]-self.sumsizes[q.left.place+1]) + str(
-                        self.getVal(q.val)) + '_'*(self.sumsizes[q.right.place]-self.sumsizes[q.place+1])
+                        q.val) + '_'*(self.sumsizes[q.right.place]-self.sumsizes[q.place+1])
                     past = self.sumsizes[q.right.place]
                     # Print of the arms of the Tree
                     nextline += ' '*(self.sumsizes[q.left.place+1]-nextpast-1) + '/' + ' '*(
@@ -337,7 +336,7 @@ class sbbst():
                     aux.append(q.left)
                     # Print of the _ and the values of the nodes
                     line += ' '*(self.sumsizes[q.left.place+1]-past) + '_'*(
-                        self.sumsizes[q.place]-self.sumsizes[q.left.place+1]) + str(self.getVal(q.val))
+                        self.sumsizes[q.place]-self.sumsizes[q.left.place+1]) + str(q.val)
                     past = self.sumsizes[q.place+1]
                     # Print of the arms of the Tree
                     nextline += ' ' * \
@@ -356,7 +355,7 @@ class sbbst():
                     nextpast = self.sumsizes[q.right.place+1]
                 else:
                     line += ' ' * \
-                        (self.sumsizes[q.place]-past)+str(self.getVal(q.val))
+                        (self.sumsizes[q.place]-past)+str(q.val)
                     past = self.sumsizes[q.place+1]
             # Add the lines to the output string
             outstr += line + '\n' + nextline + '\n'
