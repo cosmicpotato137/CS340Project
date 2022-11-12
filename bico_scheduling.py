@@ -80,8 +80,15 @@ def cmp_sections(x: Section, y: Section):
         return False
 
 
+class ZoomParams:
+    def __init__(self, use_zoom, overflow_val) -> None:
+        self.use_zoom = use_zoom
+        self.overflow_val = overflow_val
+
+
 # todo: make sure students only enrolled in at most 4 classes
-def make_schedule(students, classes, rooms, times, profs, student_ps=None, class_ps=None):
+def make_schedule(students, classes, rooms, times, profs, student_ps=None, class_ps=None,
+                  zoom_params=ZoomParams(0, 0), student_athletes=None):
     t0 = ts.time() * 1000
 
     # array of sections
@@ -115,9 +122,14 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
             if cls not in sections.keys():
                 continue
             for time in sections[cls].keys():
-                sections[cls][time].applicants[student_ps[student_id]
-                                               ][student_id] = False
-                sections[cls][time].tmax += 1
+                if True or student_athletes is None or student_athletes[student_id] == False:
+                    sections[cls][time].applicants[student_ps[student_id]
+                                                   ][student_id] = False
+                    sections[cls][time].tmax += 1
+                elif time < 4:
+                    sections[cls][time].applicants[student_ps[student_id]
+                                                   ][student_id] = False
+                    sections[cls][time].tmax += 1
                 # sections[cls][time].num_applicants += 1
 
     t_trees = {}
@@ -156,10 +168,18 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
         max_cls = max_sec.cls
 
         # get section info and append to final schedule
-        indices[max_time] += 1  # increment index for chosen time
-        max_sec.room = max_room
+        if False and zoom_params.use_zoom == 2 and max_sec.tmax > zoom_params.overflow_val:
+            max_sec.room = "zoom"
+            max_sec.size = max_sec.tmax
+        elif False and zoom_params.use_zoom == 1 and max_sec.tmax > zoom_params.overflow_val:
+            max_sec.size = max_sec.tmax
+            max_sec.room = max_room
+            indices[max_time] += 1  # increment index for chosen time
+        else:
+            indices[max_time] += 1  # increment index for chosen time
+            max_sec.room = max_room
+            max_sec.size = max_val
         max_sec.professor = classes[max_cls]
-        max_sec.size = max_val
 
         # add applicants to chosen section
         num_acc = 0
@@ -173,9 +193,6 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
 
         # append section to schedule
         schedule[max_cls] = max_sec
-
-        # print(max_val)
-        # return schedule
 
         # remove conflicting sections from contention
         for time in sections[max_cls].keys():
@@ -203,7 +220,7 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
                             student in sections[cls][max_time].applicants[i]:
                         sections[cls][max_time].applicants[i].pop(student)
                         reg_students[student].append(
-                            (max_cls, max_time, "TIME_CONFLICT"))
+                            (cls, max_time, "TIME_CONFLICT"))
                         t_trees[max_time].delete(sections[cls][max_time])
                         sections[cls][max_time].tmax -= 1
                         t_trees[max_time].insert(sections[cls][max_time])
@@ -325,3 +342,20 @@ def student_priority(students):
     for st in students.keys():
         p[st] = np.random.randint(1, 4)
     return p
+
+
+def student_athletes(students, p_athletes):
+    p = {}
+    i = 0
+    num = int(len(students.keys()) * p_athletes)
+    for st in students.keys():
+        if i < num:
+            p[st] = True
+        else:
+            p[st] = False
+    return p
+
+
+def custom_times(start, finish, interval):
+    times = [i for i in range(start, finish, interval)]
+    return times
