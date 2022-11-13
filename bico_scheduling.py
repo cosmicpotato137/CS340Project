@@ -122,11 +122,11 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
             if cls not in sections.keys():
                 continue
             for time in sections[cls].keys():
-                if True or student_athletes is None or student_athletes[student_id] == False:
+                if student_athletes is None or student_athletes[student_id] == False:
                     sections[cls][time].applicants[student_ps[student_id]
                                                    ][student_id] = False
                     sections[cls][time].tmax += 1
-                elif time < 4:
+                elif time < 16:
                     sections[cls][time].applicants[student_ps[student_id]
                                                    ][student_id] = False
                     sections[cls][time].tmax += 1
@@ -168,10 +168,10 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
         max_cls = max_sec.cls
 
         # get section info and append to final schedule
-        if False and zoom_params.use_zoom == 2 and max_sec.tmax > zoom_params.overflow_val:
+        if zoom_params.use_zoom == 2 and max_sec.tmax > zoom_params.overflow_val:
             max_sec.room = "zoom"
             max_sec.size = max_sec.tmax
-        elif False and zoom_params.use_zoom == 1 and max_sec.tmax > zoom_params.overflow_val:
+        elif zoom_params.use_zoom == 1 and max_sec.tmax > zoom_params.overflow_val:
             max_sec.size = max_sec.tmax
             max_sec.room = max_room
             indices[max_time] += 1  # increment index for chosen time
@@ -273,10 +273,14 @@ def schedule_to_file(schedule, output_file):
 
 
 # read format data from list of constraints and prefs
-def prep_data(constraints, student_prefs):
+def prep_data(constraints, student_prefs, constraints_1=None, student_prefs_1=None):
     row = []
     with open(constraints, "r") as file:
         row = file.readlines()
+    row_1 = None
+    if constraints_1 is not None:
+        with open(constraints_1, "r") as file_1:
+            row_1 = file.readlines()
 
     i = 0
     num_times = int(row[i].split()[-1])
@@ -293,16 +297,44 @@ def prep_data(constraints, student_prefs):
 
     rooms = {"room": [], "capacity": []}
 
+    j = 0
+    if row_1 is not None:
+        while row_1[j].split()[0] != "Rooms":
+            j += 1
+        j += 1
+        while row_1[j].split()[0] != "Classes":
+            r_1 = row_1[j].split()
+            rooms["room"].append("1" + r_1[0])
+            rooms["capacity"].append(int(r_1[1]))
+            j += 1
+
     i += 1
     while row[i].split()[0] != "Classes":
         r = row[i].split()
-        rooms["room"].append(r[0])
+        rooms["room"].append("0" + r[0])
         rooms["capacity"].append(int(r[1]))
         i += 1
     rooms = pd.DataFrame.from_dict(rooms)
 
     profs = {"-1": []}
     classes = {}
+
+    if row_1 is not None:
+        rows_1 = int(row_1[j].split()[1]) + j + 2
+        j += 2
+        while i < rows_1:
+            r_1 = row_1[i].split()
+            if len(r_1) == 2:
+                if profs.get(r_1[1]) != None:
+                    profs[r_1[1]].append(r_1[0])
+                else:
+                    profs[r_1[1]] = [r_1[0]]
+                classes[r_1[0]] = r_1[1]
+            else:
+                profs["-1"].append(r_1[0])
+                classes[r_1[0]] = "-1"
+            i += 1
+
     rows = int(row[i].split()[1]) + i + 2
     i += 2
     while i < rows:
@@ -347,12 +379,13 @@ def student_priority(students):
 def student_athletes(students, p_athletes):
     p = {}
     i = 0
-    num = int(len(students.keys()) * p_athletes)
     for st in students.keys():
-        if i < num:
+        f = np.random.random()
+        if f < p_athletes:
             p[st] = True
         else:
             p[st] = False
+        i += 1
     return p
 
 
