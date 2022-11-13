@@ -206,8 +206,8 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
         for cls in profs[max_sec.professor]:
             Counter.tick()
             if cls in sections.keys():
-                t_trees[max_time].delete(sections[cls][max_time])
                 if max_time in sections[cls].keys():
+                    t_trees[max_time].delete(sections[cls][max_time])
                     sections[cls].pop(max_time)  # Love this
 
         # Handling scheduling multiple applicants at the same time
@@ -325,39 +325,49 @@ def prep_data(constraints, student_prefs, constraints_1=None, student_prefs_1=No
         while i < rows_1:
             r_1 = row_1[i].split()
             if len(r_1) == 2:
-                if profs.get(r_1[1]) != None:
-                    profs[r_1[1]].append(r_1[0])
+                if profs.get("1" + r_1[1]) != None:
+                    profs["1" + r_1[1]].append("1" + r_1[0])
                 else:
-                    profs[r_1[1]] = [r_1[0]]
-                classes[r_1[0]] = r_1[1]
+                    profs["1" + r_1[1]] = ["1" + r_1[0]]
+                classes["1" + r_1[0]] = "1" + r_1[1]
             else:
-                profs["-1"].append(r_1[0])
-                classes[r_1[0]] = "-1"
+                profs["-1"].append("1" + r_1[0])
+                classes["1" + r_1[0]] = "-1"
             i += 1
 
     rows = int(row[i].split()[1]) + i + 2
     i += 2
     while i < rows:
         r = row[i].split()
-        if len(r) == 2:
-            if profs.get(r[1]) != None:
-                profs[r[1]].append(r[0])
+        if len(r) > 1:
+            if profs.get("0" + r[1]) != None:
+                profs["0" + r[1]].append("0" + r[0])
             else:
-                profs[r[1]] = [r[0]]
-            classes[r[0]] = r[1]
+                profs[r[1]] = ["0" + r[0]]
+            classes["0" + r[0]] = r[1]
         else:
-            profs["-1"].append(r[0])
-            classes[r[0]] = "-1"
+            profs["-1"].append("0" + r[0])
+            classes["0" + r[0]] = "-1"
         i += 1
 
     rows = []
+    rows_1 = None
     with open(student_prefs, "r") as file:
         rows = file.readlines()
+    if student_prefs_1 is not None:
+        with open(student_prefs_1, "r") as file_1:
+            rows_1 = file_1.readlines()
 
     students = {}
+
+    if rows_1 is not None:
+        for row in rows[1:]:
+            r_1 = row.split()
+            students["1" + r_1[0]] = ["1" + r_1[i] for i in range(1, len(r_1))]
+
     for row in rows[1:]:
         r = row.split()
-        students[r[0]] = r[1:]
+        students["0" + r[0]] = ["0" + r[i] for i in range(1, len(r))]
 
     return (students, classes, rooms, times, profs)
 

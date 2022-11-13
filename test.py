@@ -18,7 +18,7 @@ student_athletes = bs.student_athletes(students, .2)
 custom_times = bs.custom_times(8, 16, 1)
 schedule, reg_students = bs.make_schedule(
     students, classes, rooms, custom_times, profs,
-    student_p, class_p, student_athletes=student_athletes)
+    student_p, class_p)
 
 print("schedule rating:", bs.schedule_rating(schedule, students))
 bs.schedule_to_file(schedule, "test/schedule.txt")
