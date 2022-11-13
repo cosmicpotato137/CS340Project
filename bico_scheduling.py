@@ -280,7 +280,7 @@ def prep_data(constraints, student_prefs, constraints_1=None, student_prefs_1=No
     row_1 = None
     if constraints_1 is not None:
         with open(constraints_1, "r") as file_1:
-            row_1 = file.readlines()
+            row_1 = file_1.readlines()
 
     i = 0
     num_times = int(row[i].split()[-1])
@@ -322,7 +322,7 @@ def prep_data(constraints, student_prefs, constraints_1=None, student_prefs_1=No
     if row_1 is not None:
         rows_1 = int(row_1[j].split()[1]) + j + 2
         j += 2
-        while i < rows_1:
+        while j < rows_1:
             r_1 = row_1[i].split()
             if len(r_1) == 2:
                 if profs.get("1" + r_1[1]) != None:
@@ -333,7 +333,7 @@ def prep_data(constraints, student_prefs, constraints_1=None, student_prefs_1=No
             else:
                 profs["-1"].append("1" + r_1[0])
                 classes["1" + r_1[0]] = "-1"
-            i += 1
+            j += 1
 
     rows = int(row[i].split()[1]) + i + 2
     i += 2
