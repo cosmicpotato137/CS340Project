@@ -23,7 +23,8 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("incorrect number of arguments")
     elif len(sys.argv) == 2 and sys.argv[1] == "--hb_concat":
-        print("example of concatenated haverford and brynmawr schedules.")
+        print("example of concatenated haverford and brynmawr schedules:")
+
         d = bs.bmc.get_data_list_of_dicts("brynmawr/data/Fall2007.csv")
         bs.bmc.write_constraints_to_file(d, "test/bconstraints.txt")
         bs.bmc.write_prefs_to_file(d, "test/bprefs.txt")
