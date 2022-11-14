@@ -80,12 +80,14 @@ while (<SCHED>) {
 				$courseRoom{$course} = $room;
 
 				if ($classsize > $roomSize{$room}) {
+					print "$classsize\n";
 					print "Room $room is too small to hold course $course with $classsize students.\n";
 					print "Line:$_\n";
 					exit 1;
 				}
 
-				if ($teacher != -1 && $origCourseTeacher{$course} != $teacher) {
+				if ($teacher != -1 && $origCourseTeacher{substr($course, 1, length($course))} != $teacher) {
+					print "$teacher\n";
 					print "Course $course does not have the correct teacher.\n";
 					print "Line:$_\n";
 					exit 1;
@@ -130,7 +132,7 @@ while (<SCHED>) {
 						$studentCourses{$stu} = \@temp; 
 					}
 
-					if (!inArray($course, \@{$origStudentPrefs{$stu}})) {
+					if (!inArray(substr($course, 1, length($course)), \@{$origStudentPrefs{substr($stu, 1, length($stu))}})) {
 						print "Student $stu assigned to unrequested course $course.\n";
 						print "Line:$_\n";
 						exit 1;

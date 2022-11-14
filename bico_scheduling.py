@@ -80,8 +80,15 @@ def cmp_sections(x: Section, y: Section):
         return False
 
 
+class ZoomParams:
+    def __init__(self, use_zoom, overflow_val) -> None:
+        self.use_zoom = use_zoom
+        self.overflow_val = overflow_val
+
+
 # todo: make sure students only enrolled in at most 4 classes
-def make_schedule(students, classes, rooms, times, profs, student_ps=None, class_ps=None):
+def make_schedule(students, classes, rooms, times, profs, student_ps=None, class_ps=None,
+                  zoom_params=ZoomParams(0, 0), student_athletes=None):
     t0 = ts.time() * 1000
 
     # array of sections
@@ -115,9 +122,14 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
             if cls not in sections.keys():
                 continue
             for time in sections[cls].keys():
-                sections[cls][time].applicants[student_ps[student_id]
-                                               ][student_id] = False
-                sections[cls][time].tmax += 1
+                if student_athletes is None or student_athletes[student_id] == False:
+                    sections[cls][time].applicants[student_ps[student_id]
+                                                   ][student_id] = False
+                    sections[cls][time].tmax += 1
+                elif time < 16:
+                    sections[cls][time].applicants[student_ps[student_id]
+                                                   ][student_id] = False
+                    sections[cls][time].tmax += 1
                 # sections[cls][time].num_applicants += 1
 
     t_trees = {}
@@ -156,10 +168,18 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
         max_cls = max_sec.cls
 
         # get section info and append to final schedule
-        indices[max_time] += 1  # increment index for chosen time
-        max_sec.room = max_room
+        if zoom_params.use_zoom == 2 and max_sec.tmax > zoom_params.overflow_val: # corresponds to fully zoom class
+            max_sec.room = "zoom"
+            max_sec.size = max_sec.tmax
+        elif zoom_params.use_zoom == 1 and max_sec.tmax > zoom_params.overflow_val: # corresponds to adding hybrid slots to a room
+            max_sec.size = max_sec.tmax
+            max_sec.room = max_room
+            indices[max_time] += 1  # increment index for chosen time
+        else: # no zoom usage
+            indices[max_time] += 1  # increment index for chosen time
+            max_sec.room = max_room
+            max_sec.size = max_val
         max_sec.professor = classes[max_cls]
-        max_sec.size = max_val
 
         # add applicants to chosen section
         num_acc = 0
@@ -174,9 +194,6 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
         # append section to schedule
         schedule[max_cls] = max_sec
 
-        # print(max_val)
-        # return schedule
-
         # remove conflicting sections from contention
         for time in sections[max_cls].keys():
             t_trees[time].delete(sections[max_cls][time])
@@ -189,8 +206,8 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
         for cls in profs[max_sec.professor]:
             Counter.tick()
             if cls in sections.keys():
-                t_trees[max_time].delete(sections[cls][max_time])
                 if max_time in sections[cls].keys():
+                    t_trees[max_time].delete(sections[cls][max_time])
                     sections[cls].pop(max_time)  # Love this
 
         # Handling scheduling multiple applicants at the same time
@@ -203,7 +220,7 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
                             student in sections[cls][max_time].applicants[i]:
                         sections[cls][max_time].applicants[i].pop(student)
                         reg_students[student].append(
-                            (max_cls, max_time, "TIME_CONFLICT"))
+                            (cls, max_time, "TIME_CONFLICT"))
                         t_trees[max_time].delete(sections[cls][max_time])
                         sections[cls][max_time].tmax -= 1
                         t_trees[max_time].insert(sections[cls][max_time])
@@ -256,10 +273,14 @@ def schedule_to_file(schedule, output_file):
 
 
 # read format data from list of constraints and prefs
-def prep_data(constraints, student_prefs):
+def prep_data(constraints, student_prefs, constraints_1=None, student_prefs_1=None):
     row = []
     with open(constraints, "r") as file:
         row = file.readlines()
+    row_1 = None
+    if constraints_1 is not None:
+        with open(constraints_1, "r") as file_1:
+            row_1 = file_1.readlines()
 
     i = 0
     num_times = int(row[i].split()[-1])
@@ -276,6 +297,17 @@ def prep_data(constraints, student_prefs):
 
     rooms = {"room": [], "capacity": []}
 
+    j = 0
+    if row_1 is not None:
+        while row_1[j].split()[0] != "Rooms":
+            j += 1
+        j += 1
+        while row_1[j].split()[0] != "Classes":
+            r_1 = row_1[j].split()
+            rooms["room"].append(r_1[0])
+            rooms["capacity"].append(int(r_1[1]))
+            j += 1
+
     i += 1
     while row[i].split()[0] != "Classes":
         r = row[i].split()
@@ -286,29 +318,56 @@ def prep_data(constraints, student_prefs):
 
     profs = {"-1": []}
     classes = {}
+
+    if row_1 is not None:
+        rows_1 = int(row_1[j].split()[1]) + j + 2
+        j += 2
+        while j < rows_1:
+            r_1 = row_1[i].split()
+            if len(r_1) == 2:
+                if profs.get("1" + r_1[1]) != None:
+                    profs["1" + r_1[1]].append("1" + r_1[0])
+                else:
+                    profs["1" + r_1[1]] = ["1" + r_1[0]]
+                classes["1" + r_1[0]] = "1" + r_1[1]
+            else:
+                profs["-1"].append("1" + r_1[0])
+                classes["1" + r_1[0]] = "-1"
+            j += 1
+
     rows = int(row[i].split()[1]) + i + 2
     i += 2
     while i < rows:
         r = row[i].split()
-        if len(r) == 2:
-            if profs.get(r[1]) != None:
-                profs[r[1]].append(r[0])
+        if len(r) > 1:
+            if profs.get("0" + r[1]) != None:
+                profs["0" + r[1]].append("0" + r[0])
             else:
-                profs[r[1]] = [r[0]]
-            classes[r[0]] = r[1]
+                profs["0" + r[1]] = ["0" + r[0]]
+            classes["0" + r[0]] = "0" + r[1]
         else:
-            profs["-1"].append(r[0])
-            classes[r[0]] = "-1"
+            profs["-1"].append("0" + r[0])
+            classes["0" + r[0]] = "-1"
         i += 1
 
     rows = []
+    rows_1 = None
     with open(student_prefs, "r") as file:
         rows = file.readlines()
+    if student_prefs_1 is not None:
+        with open(student_prefs_1, "r") as file_1:
+            rows_1 = file_1.readlines()
 
     students = {}
+
+    if rows_1 is not None:
+        for row in rows[1:]:
+            r_1 = row.split()
+            students["1" + r_1[0]] = ["1" + r_1[i] for i in range(1, len(r_1))]
+
     for row in rows[1:]:
         r = row.split()
-        students[r[0]] = r[1:]
+        students["0" + r[0]] = ["0" + r[i] for i in range(1, len(r))]
 
     return (students, classes, rooms, times, profs)
 
@@ -325,3 +384,21 @@ def student_priority(students):
     for st in students.keys():
         p[st] = np.random.randint(1, 4)
     return p
+
+
+def student_athletes(students, p_athletes):
+    p = {}
+    i = 0
+    for st in students.keys():
+        f = np.random.random()
+        if f < p_athletes:
+            p[st] = True
+        else:
+            p[st] = False
+        i += 1
+    return p
+
+
+def custom_times(start, finish, interval):
+    times = [i for i in range(start, finish, interval)]
+    return times
