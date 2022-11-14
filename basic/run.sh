@@ -1,2 +1,2 @@
 #!/bin/sh
-python MyMain $1 $2 $3
+python make_schedule.py $1 $2 $3 $4 $5
