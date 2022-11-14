@@ -91,7 +91,7 @@ if __name__ == "__main__":
         # custom_times = bs.custom_times(8, 16, 1)
         schedule, reg_students = bs.make_schedule(
             students, classes, rooms, times, profs,
-            student_p, class_p)
+            student_p, class_p, zoom_params=zoom_params, student_athletes=student_athletes)
 
         print("schedule rating:", bs.schedule_rating(schedule, students))
         bs.schedule_to_file(schedule, of)
