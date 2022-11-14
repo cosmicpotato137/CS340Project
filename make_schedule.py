@@ -50,15 +50,18 @@ if __name__ == "__main__":
 
     elif "-h" in sys.argv:
         print(usage)
+        exit(0)
     elif "-t" in sys.argv:
         print("running all tests from test.py")
         test.test()
     elif len(sys.argv) < 4:
         print("incorrect number of arguments")
         print(usage)
+        exit(0)
     elif not (match_file(sys.argv[1]) and match_file(sys.argv[2]) and match_file(sys.argv[3])):
         print("bad file format")
         print(usage)
+        exit(0)
     else:
         cf = sys.argv[1]
         pf = sys.argv[2]
@@ -75,6 +78,7 @@ if __name__ == "__main__":
                 idx = sys.argv.index("-a")
             if idx + 3 >= len(sys.argv):
                 print(usage)
+                exit(0)
             try:
                 student_athletes = bs.student_athletes(
                     students, float(sys.argv[idx+3]))
@@ -82,6 +86,7 @@ if __name__ == "__main__":
                     int(sys.argv[idx+1]), int(sys.argv[idx+2]), 1)
             except:
                 print(usage)
+                exit(0)
 
         zoom_params = bs.ZoomParams(0, 0)
         if "-z" in sys.argv or "--zoom" in sys.argv:
@@ -90,11 +95,13 @@ if __name__ == "__main__":
                 idx = sys.argv.index("-z")
             if idx + 2 >= len(sys.argv):
                 print(usage)
+                exit(0)
             try:
                 zoom_params = bs.ZoomParams(
                     int(sys.argv[idx+1]), int(sys.argv[idx+2]))
             except:
                 print(usage)
+                exit(0)
         class_p = bs.class_priority(classes)
         student_p = bs.student_priority(students)
         # student_athletes = bs.student_athletes(students, .386)
