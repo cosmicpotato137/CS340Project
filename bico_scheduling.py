@@ -168,14 +168,14 @@ def make_schedule(students, classes, rooms, times, profs, student_ps=None, class
         max_cls = max_sec.cls
 
         # get section info and append to final schedule
-        if zoom_params.use_zoom == 2 and max_sec.tmax > zoom_params.overflow_val:
+        if zoom_params.use_zoom == 2 and max_sec.tmax > zoom_params.overflow_val: # corresponds to fully zoom class
             max_sec.room = "zoom"
             max_sec.size = max_sec.tmax
-        elif zoom_params.use_zoom == 1 and max_sec.tmax > zoom_params.overflow_val:
+        elif zoom_params.use_zoom == 1 and max_sec.tmax > zoom_params.overflow_val: # corresponds to adding hybrid slots to a room
             max_sec.size = max_sec.tmax
             max_sec.room = max_room
             indices[max_time] += 1  # increment index for chosen time
-        else:
+        else: # no zoom usage
             indices[max_time] += 1  # increment index for chosen time
             max_sec.room = max_room
             max_sec.size = max_val
