@@ -51,8 +51,7 @@ if __name__ == "__main__":
         print(usage)
     elif "-t" in sys.argv:
         print("running all tests from test.py")
-
-        print(usage)
+        test.test()
     elif len(sys.argv) < 4:
         print("incorrect number of arguments")
         print(usage)
