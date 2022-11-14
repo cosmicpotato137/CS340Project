@@ -13,7 +13,8 @@ def match_file(string):
 
 usage = '''\
 usage1: python make_schedule.py [<constraints file>] [<prefs file>] [<output file>]
-    --athletes  exclude athletes past 4p
+    --athletes [<start class time>] [<end class time>] [<percent athletes>]
+                exclude athletes past 4p
     --zoom [<1: hybrid class; 2: remote class>] [<interest threshold>]
                 use zoom for some classes
 usage2: python make_schedule.py --hb_concat
@@ -69,8 +70,18 @@ if __name__ == "__main__":
 
         student_athletes = None
         if "-a" in sys.argv or "--athletes" in sys.argv:
-            student_athletes = bs.student_athletes(students, .386)
-            times = bs.custom_times(8, 18, 1)
+            idx = sys.argv.index("--athletes")
+            if "-a" in sys.argv:
+                idx = sys.argv.index("-a")
+            if idx + 3 >= len(sys.argv):
+                print(usage)
+            try:
+                student_athletes = bs.student_athletes(
+                    students, float(sys.argv[idx+3]))
+                times = bs.custom_times(
+                    int(sys.argv[idx+1]), int(sys.argv[idx+2]), 1)
+            except:
+                print(usage)
 
         zoom_params = bs.ZoomParams(0, 0)
         if "-z" in sys.argv or "--zoom" in sys.argv:
@@ -80,10 +91,10 @@ if __name__ == "__main__":
             if idx + 2 >= len(sys.argv):
                 print(usage)
             try:
-                zoom_params = bs.ZoomParams(sys.argv[idx+1], sys.argv[idx+2])
+                zoom_params = bs.ZoomParams(
+                    int(sys.argv[idx+1]), int(sys.argv[idx+2]))
             except:
                 print(usage)
-
         class_p = bs.class_priority(classes)
         student_p = bs.student_priority(students)
         # student_athletes = bs.student_athletes(students, .386)
