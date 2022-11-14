@@ -304,14 +304,14 @@ def prep_data(constraints, student_prefs, constraints_1=None, student_prefs_1=No
         j += 1
         while row_1[j].split()[0] != "Classes":
             r_1 = row_1[j].split()
-            rooms["room"].append("1" + r_1[0])
+            rooms["room"].append(r_1[0])
             rooms["capacity"].append(int(r_1[1]))
             j += 1
 
     i += 1
     while row[i].split()[0] != "Classes":
         r = row[i].split()
-        rooms["room"].append("0" + r[0])
+        rooms["room"].append(r[0])
         rooms["capacity"].append(int(r[1]))
         i += 1
     rooms = pd.DataFrame.from_dict(rooms)
@@ -343,8 +343,8 @@ def prep_data(constraints, student_prefs, constraints_1=None, student_prefs_1=No
             if profs.get("0" + r[1]) != None:
                 profs["0" + r[1]].append("0" + r[0])
             else:
-                profs[r[1]] = ["0" + r[0]]
-            classes["0" + r[0]] = r[1]
+                profs["0" + r[1]] = ["0" + r[0]]
+            classes["0" + r[0]] = "0" + r[1]
         else:
             profs["-1"].append("0" + r[0])
             classes["0" + r[0]] = "-1"
